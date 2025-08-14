@@ -2,10 +2,10 @@ use poem::{get, handler, http::StatusCode, listener::TcpListener, post, web::{Da
 use serde::{Deserialize, Serialize};
 use sqlx::{pool::PoolOptions, FromRow, Pool, Postgres};
 use validator::ValidateEmail;
-use anyhow::Result;
+// Removed anyhow::{Ok, Result}; not needed for this file
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // Load database URL from environment or use default
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:password@localhost:5432/postgres".to_string());
@@ -82,15 +82,26 @@ async fn check_email_handler(
     Ok(Json(EmailResponse { exists, aggregated_public_key }))
 }
 
+
+#[derive(Serialize)]
+struct CreateUserResponse {
+    success: bool,
+}
+
 #[handler]
 // Create a new user
 async fn create_user_handler(
     Data(pool): Data<&Pool<Postgres>>,
     Json(req): Json<CreateUserRequest>,
 ) -> poem::Result<impl poem::IntoResponse> {
-    if !req.email.validate_email() || req.private_key.len() < 32 || req.aggregated_public_key.len() < 32 {
-        return Err(poem::Error::from_status(StatusCode::BAD_REQUEST));
-    }
+    println!("hitted");
+    println!("{:?}{:?}{:?}", req.aggregated_public_key,req.email, req.private_key);
+    
+    // if !req.email.validate_email() || req.private_key.len() < 32 || req.aggregated_public_key.len() < 32 {
+    //     return Err(poem::Error::from_status(StatusCode::BAD_REQUEST));
+    // }
+
+    // println!("Request: {:?}", req.aggregated_public_key, );
 
     // Begin a transaction directly on the pool reference
     let mut tx = pool.begin().await
@@ -121,5 +132,12 @@ async fn create_user_handler(
     tx.commit().await
         .map_err(|_| poem::Error::from_status(StatusCode::INTERNAL_SERVER_ERROR))?;
 
-    Ok(Json(user))
+    // Ok(Json(user))
+    Ok(Json(CreateUserResponse{
+        success: user.active
+    }))
+
+
+
+
 }
